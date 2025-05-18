@@ -8,7 +8,10 @@
     let remoteVideo: HTMLVideoElement | null = $state(null);
     let peer: RTCPeerConnection;
     let isBroadcaster: boolean = $state(false);
-    let id;
+    let id: string;
+
+    let peers: { [key: string]: RTCPeerConnection } = {};
+    let stream: MediaStream;
 
     let iceQueue: RTCIceCandidate[] = [];
     let remoteDescriptionSet = false;
@@ -21,7 +24,6 @@
     }
     ws.onmessage = async (event: any) => {
         const data = JSON.parse(event.data);
-        console.log(data);
         if (data.type == 'message') {
             responses.push(`${data.sender}: ${data.message}`);
         }
@@ -31,6 +33,12 @@
         }
 
         if (data.type === "offer" && !isBroadcaster) {
+            console.log(data);
+            if (peer?.signalingState !== "stable") {
+                console.warn("Skipping duplicate offer");
+                return;
+            }
+
             peer = createPeer();
             await peer.setRemoteDescription(new RTCSessionDescription(data.offer));
             remoteDescriptionSet = true;
@@ -72,7 +80,23 @@
             }
         }
 
-        if (data.type == 'join') {
+        else if (data.type == 'join' && id && data.id != id && isBroadcaster) {
+            console.log(data);
+            //create new peer connection for the new user
+            const pc = createPeer();
+            peers[data.id] = pc;
+
+            stream.getTracks().forEach(track => {
+                pc.addTrack(track, stream);
+            });
+
+            //create offer for the new user
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            ws.send(JSON.stringify({ type: "offer", offer, to: data.id }));
+        }
+
+        else if (data.type == 'join' && !id) {
             isBroadcaster = data.broadcaster;
             id = data.id;
             console.log('starting stuff');
@@ -84,7 +108,7 @@
         peer = createPeer();
 
         if (isBroadcaster && videoDiv) {
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            stream = await navigator.mediaDevices.getUserMedia({ video: true });
             videoDiv.srcObject = stream;
 
             stream.getTracks().forEach(track => {
@@ -114,6 +138,7 @@
 
         pc.ontrack = (e) => {
             remoteVideo.srcObject = e.streams[0];
+            remoteVideo?.play();
         };
 
         return pc;
@@ -178,6 +203,12 @@
         <br>
     {/if}
     <video bind:this={videoDiv} style="transform: scaleX(-1)" autoplay></video>
-    <video bind:this={remoteVideo} style="transform: scaleX(-1)" autoplay></video>
+    <video
+        bind:this={remoteVideo}
+        autoplay
+        playsinline
+        muted
+        style="width: 300px; height: 300px; transform: scaleX(-1); background: black"
+    ></video>
     <br>
 </div>
