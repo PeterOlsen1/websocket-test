@@ -52,6 +52,7 @@ wss.on('connection', (ws) => {
             }
 
             if (toSocket) {
+                console.log(id);
                 toSocket.send(JSON.stringify({ ...data, from: id }));
             }
         }

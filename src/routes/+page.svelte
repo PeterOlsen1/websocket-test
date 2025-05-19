@@ -5,7 +5,7 @@
     let message = $state('');
     let username = $state('');
     let videoDiv: HTMLVideoElement | null = $state(null);
-    let remoteVideo: HTMLVideoElement | null = $state(null);
+    let remoteVideo: HTMLVideoElement | null = null;
     let peer: RTCPeerConnection;
     let isBroadcaster: boolean = $state(false);
     let id: string;
@@ -53,6 +53,7 @@
         }
 
         if (data.type === "answer" && isBroadcaster) {
+            console.log(data);
             await peer.setRemoteDescription(new RTCSessionDescription(data.answer));
             remoteDescriptionSet = true;
 
@@ -61,8 +62,6 @@
                 await peer.addIceCandidate(candidate);
             }
             iceQueue = [];
-
-            ws.send(JSON.stringify({ type: "ready", from: id, to: 'broadcaster'}))
         }
 
         if (data.type === "ice") {
@@ -83,7 +82,7 @@
         //we are the broadcaster and a new user joined
         else if (data.type == 'join' && id && data.id != id && isBroadcaster) {
             console.log(data);
-            //create new peer connection for the new user
+            // create new peer connection for the new user
             const pc = createPeer();
             peers[data.id] = pc;
 
@@ -91,7 +90,7 @@
                 pc.addTrack(track, stream);
             });
 
-            //create offer for the new user
+            // create offer for the new user
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
             ws.send(JSON.stringify({ type: "offer", offer, to: data.id }));
@@ -104,16 +103,6 @@
             console.log('First join, starting peer connection process');
             start();
         }
-
-        //remote client is ready. send them the stream
-        else if (data.type == 'ready' && data.to == 'broadcaster' && isBroadcaster) {
-            console.log(data);
-            console.log('remote client is ready');
-            const pc = peers[data.from];
-            stream.getTracks().forEach(track => {
-                pc.addTrack(track, stream);
-            });
-        }
     }
 
     async function start() {
@@ -123,18 +112,18 @@
             stream = await navigator.mediaDevices.getUserMedia({ video: true });
             videoDiv.srcObject = stream;
 
-            stream?.getTracks().forEach(track => {
-                peer.addTrack(track, stream);
-            });
+            // stream.getTracks().forEach(track => {
+            //     peer.addTrack(track, stream);
+            // });
 
-            const offer = await peer.createOffer();
-            await peer.setLocalDescription(offer);
+            // const offer = await peer.createOffer();
+            // await peer.setLocalDescription(offer);
 
-            ws.send(JSON.stringify({ type: "offer", offer }));
+            // ws.send(JSON.stringify({ type: "offer", offer }));
         }
     }
 
-    //create peer connection
+    //create peer connection to recieve tracks
     function createPeer() {
         const config = {
             iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
@@ -151,7 +140,6 @@
         pc.ontrack = (e) => {
             console.log(e);
             remoteVideo.srcObject = e.streams[0];
-            remoteVideo?.play();
         };
 
         return pc;
@@ -219,8 +207,6 @@
     <video
         bind:this={remoteVideo}
         autoplay
-        playsinline
-        muted
         style="transform: scaleX(-1);"
     ></video>
     <br>
