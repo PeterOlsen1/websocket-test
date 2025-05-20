@@ -7,16 +7,6 @@ const users: {[key: string]: string} = {};
 const clients: {[key: string]: WebSocket} = {};
 let broadcaster: WebSocket | null = null;
 
-function generateRandomLobby() {
-    const chars = 'abcdefghijklmnopqrstuvwxyz1234567890';
-    let out = "";
-    for (let i = 0; i < 5; i++) {
-        const rand = Math.floor(Math.random() * (26 + 10));
-        out += chars.charAt(rand);
-    }
-    return out;
-}
-
 wss.on('connection', (ws) => {
     // save client to clients map
     const id = uuid();
@@ -52,7 +42,6 @@ wss.on('connection', (ws) => {
             }
 
             if (toSocket) {
-                console.log(id);
                 toSocket.send(JSON.stringify({ ...data, from: id }));
             }
         }
@@ -72,24 +61,20 @@ wss.on('connection', (ws) => {
             });
         }
         else if (data.type == 'join') {
-            //user joined the call
-            ws.send(JSON.stringify({
+            const newUser = JSON.stringify({
                 type: 'join',
                 position: wss.clients.size,
-                broadcaster: wss.clients.size == 1,
-                id
-            }));
+                // broadcaster: wss.clients.size == 1,
+                id,
+                users: Object.keys(clients).filter(key => key != id)
+            });
 
-            if (wss.clients.size == 1) {
-                broadcaster = ws;
-            }
-            else {
-                broadcaster?.send(JSON.stringify({
-                    type: 'join',
-                    position: wss.clients.size,
-                    id
-                }));
-            }
+            //user joined the call, send to everyone!
+            wss.clients.forEach(c => {
+                if (c.readyState == ws.OPEN) {
+                    c.send(newUser);
+                }
+            });
         }
         else {
             //send to everyone but the sender
