@@ -11,7 +11,7 @@
     let id: string;
     let stream: MediaStream | null;
     let docRef: HTMLDivElement | null;
-    const streams: StreamEntry[] = $state([]);
+    let streams: StreamEntry[] = $state([]);
 
     let streamResolve: (s: MediaStream) => void;
     const streamReady = new Promise<MediaStream>((resolve) => { streamResolve = resolve; });
@@ -84,6 +84,11 @@
             let pc = peers[data.from];
             if (!pc) { //this client did not initiate a connection, it needs to create a peer connection
                 pc = await start(data.from);
+
+                //add tracks from the stream so that both parties can get them
+                stream?.getTracks().forEach((t) => {
+                    pc.addTrack(t, stream as MediaStream);
+                });
                 peers[data.from] = pc;
             }
 
@@ -167,10 +172,22 @@
         }
 
         pc.onconnectionstatechange = () => {
-            if ((pc.connectionState === "disconnected" || pc.connectionState === "failed") && to) {
+            if (pc.connectionState == 'connecting') {
+                const loadingDiv = document.createElement('div');
+                loadingDiv.className = 'loader';
+                loadingDiv.id = `loading-${to}`;
+                docRef?.appendChild(loadingDiv);
+            }
+            else if (pc.connectionState == 'connected') {
+                const loader = docRef?.querySelector(`#loading-${to}`);
+                loader?.remove();
+            }
+            else if ((pc.connectionState === "disconnected" || pc.connectionState === "failed") && to) {
                 delete peers[to];
-                //dont worry about checking the user here, entire page will be gone
-                streams.filter((s) => s.id != to);
+                //dont worry about checking the main id here, entire page will be gone if they leave
+                const videoDiv = document.querySelector(`#user-${to}`);
+                videoDiv?.remove();
+                streams = streams.filter((s) => s.id != to);
             }
         }
 
@@ -191,13 +208,23 @@
         return stream;
     }
 
+    /**
+    * modify the DOM whenever a new stream appears
+    */ 
     $effect(() => {
         if (!docRef) {
             return;
         }
 
         for (const stream of streams) {
+            //check if the box exists already
+            const streamId = stream.id;
+            const ele = docRef.querySelector(`#user-${streamId}`);
+            if (ele) { continue; }
+
             const videoDiv = document.createElement('video');
+            videoDiv.id = `user-${streamId}`;
+            videoDiv.className = 'video';
             videoDiv.srcObject = stream.stream;
             docRef.appendChild(videoDiv);
             videoDiv.play();
@@ -206,18 +233,53 @@
         return;
     });
 
-    onMount(async () => {
+    /**
+     * start video, return function to close connections
+     * 
+     * use .then so that the function isnt async and we
+     * can appease the ts gods
+    */
+    onMount(() => {
         const video = document.querySelector('video');
-        stream = await startCamera(video) || null;
-        if (stream) {
-            streamResolve(stream);
-        }
-    });
+        startCamera(video).then((mediaStream) => {
+            stream = mediaStream || null;
+            if (stream) {
+                streamResolve(stream);
+            }
+        });
+
+        return () => {
+            for (const id of Object.keys(peers)) {
+                const pc = peers[id];
+                pc.close();
+            }
+            stream?.getTracks().forEach((t) => {
+                t.stop();
+            });
+        };
+        });
 </script>
 
+<style>
+    .video-container {
+        width: 100%;
+        height: 100vh;
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+    }
 
-<div bind:this={docRef}>
-    <video autoplay style="transform: scaleX(-1)">
-        <track kind="captions">
-    </video>
+    :global(.video) {
+        width: 100%;
+        /* height: 25vh; */
+        transform: scaleX(-1);
+    }
+</style>
+
+
+<div>
+    <div class="video-container" bind:this={docRef}>
+        <video class="video" autoplay>
+            <track kind="captions">
+        </video>
+    </div>
 </div>
