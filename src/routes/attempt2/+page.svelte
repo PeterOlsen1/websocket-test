@@ -1,4 +1,9 @@
 <script lang="ts">
+    interface StreamEntry {
+        id: string,
+        stream: MediaStream
+    }
+
     import { onMount } from "svelte";
 
     const ws = new WebSocket('ws://localhost:8080');
@@ -6,7 +11,7 @@
     let id: string;
     let stream: MediaStream | null;
     let docRef: HTMLDivElement | null;
-    const streams = [];
+    const streams: StreamEntry[] = $state([]);
 
     let streamResolve: (s: MediaStream) => void;
     const streamReady = new Promise<MediaStream>((resolve) => { streamResolve = resolve; });
@@ -77,11 +82,9 @@
             }
 
             let pc = peers[data.from];
-            if (!pc) {
-                // console.error("Peer connection not found! (offer)");
+            if (!pc) { //this client did not initiate a connection, it needs to create a peer connection
                 pc = await start(data.from);
                 peers[data.from] = pc;
-                // return;
             }
 
             await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
@@ -101,7 +104,6 @@
                 return;
             }
 
-            console.log('setting remote description');
             await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
         }
     }
@@ -117,9 +119,11 @@
         peers[userId] = pc;
 
         //wait for stream if it is not defined by this point
-        if (!stream) { await streamReady; }
+        if (!stream) { 
+            console.log('stream not ready yet');
+            await streamReady; 
+        }
 
-        console.log(stream);
         //stream will not be null, we already checked earlier
         //@ts-ignore
         stream.getTracks().forEach((track) => {
@@ -156,18 +160,17 @@
         }
 
         pc.ontrack = (ev: RTCTrackEvent) => {
-            console.log(ev);
-            streams.push(ev.streams[0]);
-
-            const ele: HTMLVideoElement = document.createElement('video');
-            ele.srcObject = ev.streams[0];
-            docRef?.appendChild(ele);
-            ele.play();
+            streams.push({
+                id: to || id,
+                stream: ev.streams[0]
+            });
         }
 
         pc.onconnectionstatechange = () => {
             if ((pc.connectionState === "disconnected" || pc.connectionState === "failed") && to) {
                 delete peers[to];
+                //dont worry about checking the user here, entire page will be gone
+                streams.filter((s) => s.id != to);
             }
         }
 
@@ -183,15 +186,32 @@
         }
 
         const stream = await navigator.mediaDevices.getUserMedia({video: true});
-        streamResolve(stream);
         videoElement.srcObject = stream;
 
         return stream;
     }
 
+    $effect(() => {
+        if (!docRef) {
+            return;
+        }
+
+        for (const stream of streams) {
+            const videoDiv = document.createElement('video');
+            videoDiv.srcObject = stream.stream;
+            docRef.appendChild(videoDiv);
+            videoDiv.play();
+        }
+
+        return;
+    });
+
     onMount(async () => {
         const video = document.querySelector('video');
         stream = await startCamera(video) || null;
+        if (stream) {
+            streamResolve(stream);
+        }
     });
 </script>
 
