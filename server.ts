@@ -198,7 +198,6 @@ wss.on('connection', (ws) => {
     //cleanup on close
     ws.on('close', () => {
         freeClients = freeClients.filter(c => c != ws);
-        console.log(freeClients.length);
         delete users[username];
         delete allClients[id];
 
