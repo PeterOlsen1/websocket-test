@@ -212,10 +212,12 @@
     <br>
 </div> -->
 
-<script>
+<script lang="ts">
     import { goto } from "$app/navigation";
     import { WEBSOCKET_URL } from "$lib/constants";
+    let rooms: string[] = $state([]);
     const ws = new WebSocket(WEBSOCKET_URL);
+    let startSent = false;
 
     ws.onmessage = (event) => {
         let data;
@@ -227,14 +229,18 @@
             return;
         }
 
-        if (data.type == 'start') {
+        if (data.type == 'start' && startSent) {
             const roomId = data.roomId;
             ws.close();
             goto(`/${roomId}`);
         }
+        else if (data.type == 'start' && !startSent) {
+            rooms = data.rooms;
+        }
     }
 
     function startRoom() {
+        startSent = true;
         ws.send(JSON.stringify({
             type: 'start'
         }));
@@ -353,6 +359,16 @@
             <div>
                 Join room
                 <input type="text">
+            </div>
+            <div>
+                open rooms:
+            </div>
+            <div>
+                {#each rooms as room}
+                    <button onclick={() => {ws.close(); goto(`/${room}`)}}>
+                        goto room {room}
+                    </button>
+                {/each}
             </div>
         </div>
     </div>

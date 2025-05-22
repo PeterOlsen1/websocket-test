@@ -12,6 +12,24 @@
 		body {
 			font-family: "Inter", sans-serif;
 		}
+
+		.loader {
+			border: 0.3em solid #f3f3f3;
+			border-bottom: 0.3em solid rgb(47, 47, 47);
+			width: 2em;
+			height: 2em;
+			border-radius: 50%;
+			animation: rotate 1s infinite linear;
+		}
+
+		@keyframes rotate {
+			0% {
+				transform: rotate(0deg);
+			}
+			100% {
+				transform: rotate(360deg);
+			}
+		}
 	</style>
 	<body data-sveltekit-preload-data="hover" style="margin: 0;">
 		<div style="display: contents">%sveltekit.body%</div>

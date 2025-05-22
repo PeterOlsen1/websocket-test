@@ -13,6 +13,7 @@ const wss = new WebSocketServer({ port: 8080 });
 const users: {[key: string]: string} = {};
 const allClients: {[key: string]: WebSocket} = {};
 const rooms: {[key: string]: Room} = {};
+let freeClients: WebSocket[] = [];
 
 /**
  * Generate a random room id
@@ -46,6 +47,13 @@ wss.on('connection', (ws) => {
     allClients[id] = ws;
     let getClients: () => WebSocket[] | undefined;
 
+    freeClients.push(ws);
+
+    ws.send(JSON.stringify({
+        type: 'start',
+        rooms: Object.keys(rooms)
+    }));
+
 
     ws.on('message', (d) => {
         let data;
@@ -63,10 +71,19 @@ wss.on('connection', (ws) => {
         }
 
         if (data.to) { // we have a specific recipient
-            let toSocket = allClients[data.to];
-            if (toSocket) {
-                toSocket.send(JSON.stringify({ ...data, from: id }));
+            let toSocket: WebSocket = allClients[data.to];
+            if (data.to.includes('-screenshare')) {
+                toSocket = allClients[data.to.split('-screenshare')[0]]
             }
+            
+            if (!toSocket) { return; }
+
+            // if (data.mediaType && data.mediaType == 'screenshare') {
+            //     toSocket.send(JSON.stringify({ ...data, from: id + '-screenshare' }));
+            // }
+            // else {
+                toSocket.send(JSON.stringify({ ...data, from: id }));
+            // }
         }
 
         else if (data.type == 'start') { // room start
@@ -87,8 +104,25 @@ wss.on('connection', (ws) => {
                 type: 'start',
                 roomId: roomId
             }));
+
+            freeClients.forEach(c => {
+                c.send(JSON.stringify({
+                    type: 'start',
+                    rooms: Object.keys(rooms)
+                }));
+            })
         }
         else if (data.type == 'end') {
+            const clients = getClients?.();
+            if (!clients) { return; }
+
+            clients.forEach(c => {
+                c.send(JSON.stringify({
+                    type: 'end'
+                }));
+                c.close();
+            });
+
             const roomId = data.roomId;
             delete rooms[roomId];
         }
@@ -113,6 +147,8 @@ wss.on('connection', (ws) => {
             });
         }
         else if (data.type == 'join') { // join room
+            freeClients = freeClients.filter(c => c != ws);
+
             roomId = data.roomId;
             if (!rooms[roomId]) {
                 console.log("Joined invalid room!");
@@ -161,6 +197,8 @@ wss.on('connection', (ws) => {
 
     //cleanup on close
     ws.on('close', () => {
+        freeClients = freeClients.filter(c => c != ws);
+        console.log(freeClients.length);
         delete users[username];
         delete allClients[id];
 
