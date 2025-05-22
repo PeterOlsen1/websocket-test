@@ -74,10 +74,10 @@ export default class WebSocketClient {
                 this.isOwner.status = true;
             }
 
-            //create connections with all of the current active users
-            data.users?.forEach((u: string) => {
-                this.newUser(u);
-            });
+            // //create connections with all of the current active users
+            // data.users?.forEach((u: string) => {
+            //     this.newUser(u);
+            // });
         }
         else if (data.type == 'join') { // new user joined
             if (!data.id) {
@@ -92,7 +92,7 @@ export default class WebSocketClient {
             }
 
             //call function to start new user operations
-            // newUser(data.id);
+            this.newUser(data.id);
         }
         else if (data.type == 'ice') {
             if (data.from == id || !data.from) {
@@ -123,16 +123,14 @@ export default class WebSocketClient {
 
             let pc = this.peers[from];
             if (!pc) { //this client did not initiate a connection, it needs to create a peer connection
-                console.log('make peer connection for screenshare');
-                console.log('OFFER, NEW PEER ID: ' + from);
                 pc = await this.start(from, mediaType);
 
                 //add tracks only if this is not a screenshare
-                if (mediaType == MediaType.VIDEO) {
+                // if (mediaType == MediaType.VIDEO) {
                     this.stream?.getTracks().forEach((t) => {
                         pc.addTrack(t, this.stream as MediaStream);
                     });
-                }
+                // }
                 this.peers[from] = pc;
             }
 
@@ -147,7 +145,6 @@ export default class WebSocketClient {
                 return;
             }
 
-            console.log('ANSWER (last): ' + data.from);
             const pc = this.peers[data.from];
             if (!pc) {
                 console.error("Peer connection not found! (answer)");
@@ -210,14 +207,11 @@ export default class WebSocketClient {
         }
 
         pc.ontrack = (ev: RTCTrackEvent) => {
-            console.log(ev.streams);
-            console.log(mediaType);
-            console.log(to);
-
             //only push the stream if the ID is unique
             let uniqueId = true;
+            let sId = ev.streams[0].id;
             this.streams.forEach(s => {
-                if (s.id == to) {
+                if (s.stream.id == sId) {
                     uniqueId = false;
                 }
             });

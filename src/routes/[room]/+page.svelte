@@ -6,10 +6,11 @@
     import WebSocketClient, { streamResolve } from "./webSocketFunctions.js";
     import type StreamEntry from "./types";
     import type { ScreenShareEntry } from "./types";
+    import { createVideoElement } from "./mediaFunctions.js";
     const ROOM_ID = page.params.room
 
-    const ws = new WebSocket(WEBSOCKET_URL);
-    // const ws = new WebSocket(''); // for testing purposes
+    // const ws = new WebSocket(WEBSOCKET_URL);
+    const ws = new WebSocket(''); // for testing purposes
     const peers: {[key: string]: RTCPeerConnection} = {};
     let docRef: HTMLDivElement | null = $state(null);
     let streams: StreamEntry[] = $state([]);
@@ -43,6 +44,8 @@
 
         const stream = await navigator.mediaDevices.getUserMedia({video: true});
         videoElement.srcObject = stream;
+        console.log('starting camera');
+        console.log(stream);
 
         return stream;
     }
@@ -53,6 +56,9 @@
      */
     async function startScreenShare() {
         const stream = await navigator.mediaDevices.getDisplayMedia();
+        console.log('starting screenshare');
+        console.log(stream);
+
         currentScreenShare.stream = stream;
         currentScreenShare.id = 'my-screenshare';
         currentScreenShare.active = true;
@@ -84,22 +90,20 @@
     * modify the DOM whenever a new stream appears
     */ 
     $effect(() => {
+        console.log('new stream appeared!');
         if (!docRef) {
             return;
         }
 
         for (const stream of streams) {
+            console.log(stream.stream);
             //check if the box exists already
             const streamId = stream.id;
             const ele = docRef.querySelector(`#user-${streamId}`);
             if (ele) { continue; }
 
-            const videoDiv = document.createElement('video');
-            videoDiv.id = `user-${streamId}`;
-            videoDiv.className = 'video';
-            videoDiv.srcObject = stream.stream;
-            docRef.appendChild(videoDiv);
-            videoDiv.play();
+            const container = createVideoElement(stream.id, stream.stream);
+            docRef.appendChild(container);
         }
 
         return;
@@ -120,6 +124,26 @@
         startCamera(video).then((mediaStream) => {
             wsc.stream = mediaStream || null;
             streamResolve(mediaStream || new MediaStream());
+            streams.push({
+                stream: mediaStream || new MediaStream(),
+                id: 'hello'
+            });
+            streams.push({
+                stream: mediaStream || new MediaStream(),
+                id: 'hello'
+            });
+            streams.push({
+                stream: mediaStream || new MediaStream(),
+                id: 'hello'
+            });
+            streams.push({
+                stream: mediaStream || new MediaStream(),
+                id: 'hello'
+            });
+            streams.push({
+                stream: mediaStream || new MediaStream(),
+                id: 'hello'
+            });
         });
 
         return () => {
@@ -141,15 +165,7 @@
         display: grid;
         grid-template-columns: repeat(5, 1fr);
         background-color: white;
-    }
-
-    :global(.video) {
-        width: 100%;
-        transform: scaleX(-1);
-    }
-
-    :global(.reverse) {
-        transform: scaleX(-1);
+        align-items: start;
     }
 
     .svg-wrapper {
@@ -178,6 +194,32 @@
         padding-right: 1em;
         gap: 1em;
         align-items: center;
+    }
+
+    :global(.screenshare) {
+        transform: scaleX(1);
+        width: 100%;
+        position: relative;
+    }
+
+    :global(.video) {
+        width: 100%;
+        transform: scaleX(-1);
+        position: relative;
+    }
+
+    :global(.video-entry) {
+        position: relative;
+        /* height: auto; */
+    }
+
+    :global(.video-text) {
+        position: absolute;
+        background-color: rgba(47, 47, 47, 0.5);
+        bottom: 4px;
+        right: 0;
+        font-size: 0.5rem;
+        padding: 0.1rem 0.2rem 0.1rem 0.2rem;
     }
 </style>
 
@@ -209,8 +251,13 @@
 
     <!-- video elements will be added/removed dynamically down here as things change -->
     <div class="video-container" bind:this={docRef}>
-        <video class="video" autoplay>
-            <track kind="captions">
-        </video>
+        <div class="video-entry">
+            <video class="video" autoplay>
+                <track kind="captions">
+            </video>
+            <div class="video-text">
+                {ROOM_ID}
+            </div>
+        </div>
     </div>
 </div>
