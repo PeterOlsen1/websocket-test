@@ -9,8 +9,8 @@
     import { createVideoElement } from "./mediaFunctions.js";
     const ROOM_ID = page.params.room
 
-    // const ws = new WebSocket(WEBSOCKET_URL);
-    const ws = new WebSocket(''); // for testing purposes
+    const ws = new WebSocket(WEBSOCKET_URL);
+    // const ws = new WebSocket(''); // for testing purposes
     const peers: {[key: string]: RTCPeerConnection} = {};
     let docRef: HTMLDivElement | null = $state(null);
     let streams: StreamEntry[] = $state([]);
@@ -100,10 +100,16 @@
             //check if the box exists already
             const streamId = stream.id;
             const ele = docRef.querySelector(`#user-${streamId}`);
-            if (ele) { continue; }
+            if (ele) { 
+                // const v = ele.querySelector('video') ?? document.createElement('video');
+                // v.srcObject = stream.stream;
+                // v.play();
+                continue; 
+            }
 
-            const container = createVideoElement(stream.id, stream.stream);
+            const [container, video] = createVideoElement(stream.id, stream.stream);
             docRef.appendChild(container);
+            video.play();
         }
 
         return;
@@ -124,26 +130,26 @@
         startCamera(video).then((mediaStream) => {
             wsc.stream = mediaStream || null;
             streamResolve(mediaStream || new MediaStream());
-            streams.push({
-                stream: mediaStream || new MediaStream(),
-                id: 'hello'
-            });
-            streams.push({
-                stream: mediaStream || new MediaStream(),
-                id: 'hello'
-            });
-            streams.push({
-                stream: mediaStream || new MediaStream(),
-                id: 'hello'
-            });
-            streams.push({
-                stream: mediaStream || new MediaStream(),
-                id: 'hello'
-            });
-            streams.push({
-                stream: mediaStream || new MediaStream(),
-                id: 'hello'
-            });
+            // streams.push({
+            //     stream: mediaStream || new MediaStream(),
+            //     id: 'hello'
+            // });
+            // streams.push({
+            //     stream: mediaStream || new MediaStream(),
+            //     id: 'hello'
+            // });
+            // streams.push({
+            //     stream: mediaStream || new MediaStream(),
+            //     id: 'hello'
+            // });
+            // streams.push({
+            //     stream: mediaStream || new MediaStream(),
+            //     id: 'hello'
+            // });
+            // streams.push({
+            //     stream: mediaStream || new MediaStream(),
+            //     id: 'hello'
+            // });
         });
 
         return () => {
@@ -256,7 +262,7 @@
                 <track kind="captions">
             </video>
             <div class="video-text">
-                {ROOM_ID}
+                Me
             </div>
         </div>
     </div>

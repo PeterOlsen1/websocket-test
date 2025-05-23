@@ -1,4 +1,4 @@
-export function createVideoElement(id: string, stream: MediaStream): HTMLDivElement {
+export function createVideoElement(id: string, stream: MediaStream): [HTMLDivElement, HTMLVideoElement] {
     const entry: HTMLDivElement = document.createElement('div');
     entry.className = "video-entry";
     entry.id = `user-${id}`;
@@ -6,7 +6,6 @@ export function createVideoElement(id: string, stream: MediaStream): HTMLDivElem
     const v: HTMLVideoElement = document.createElement('video');
     v.srcObject = stream;
     v.className = `${id.includes('-screenshare') ? 'screenshare' : 'video'}`;
-    v.play();
 
     const text = document.createElement('div');
     text.innerText = id;
@@ -14,5 +13,5 @@ export function createVideoElement(id: string, stream: MediaStream): HTMLDivElem
 
     entry.appendChild(v);
     entry.appendChild(text);
-    return entry;
+    return [entry, v];
 }

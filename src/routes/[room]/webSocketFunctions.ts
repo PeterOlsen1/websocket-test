@@ -12,6 +12,9 @@ let id: string = '';
 export let streamResolve: (s: MediaStream) => void;
 const streamReady = new Promise<MediaStream>((resolve) => { streamResolve = resolve; });
 
+export let screenShareResolve: (s: MediaStream) => void;
+const screenShareReady = new Promise<MediaStream>((resolve) => { screenShareResolve = resolve; });
+
 export default class WebSocketClient {
     ws: WebSocket;
     streams: StreamEntry[];
