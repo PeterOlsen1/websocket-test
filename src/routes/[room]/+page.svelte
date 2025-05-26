@@ -4,8 +4,9 @@
     import { goto } from "$app/navigation";
     import { WEBSOCKET_URL } from "$lib/constants.js";
     import WebSocketClient, { streamResolve } from "./webSocketFunctions.js";
-    import type StreamEntry from "./types";
-    import type { ScreenShareEntry } from "./types";
+    import type { StreamEntry, ScreenShareEntry } from "./types.d.ts";
+    //@ts-ignore: importing from types.d.ts works just fine
+    import { MediaType } from "./types.d.ts";
     import { createVideoElement } from "./mediaFunctions.js";
     const ROOM_ID = page.params.room
 
@@ -44,8 +45,6 @@
 
         const stream = await navigator.mediaDevices.getUserMedia({video: true});
         videoElement.srcObject = stream;
-        console.log('starting camera');
-        console.log(stream);
 
         return stream;
     }
@@ -56,8 +55,6 @@
      */
     async function startScreenShare() {
         const stream = await navigator.mediaDevices.getDisplayMedia();
-        console.log('starting screenshare');
-        console.log(stream);
 
         currentScreenShare.stream = stream;
         currentScreenShare.id = 'my-screenshare';
@@ -65,13 +62,13 @@
         streams.push(currentScreenShare);
 
         //stream.oninactive does exist, idk why typescript does not recognize that
-        //@ts-ignore
+        // @ts-ignore
         stream.oninactive = () => {
             const myScreenshare = document.querySelector('#user-my-screenshare');
             myScreenshare?.remove();
         }
 
-        wsc.addMediaStream(stream);
+        wsc.addMediaStream(stream, MediaType.SCREENSHARE);
     }
 
     /**
@@ -96,20 +93,19 @@
         }
 
         for (const stream of streams) {
-            console.log(stream.stream);
+            console.log(stream.stream.getVideoTracks());
             //check if the box exists already
             const streamId = stream.id;
             const ele = docRef.querySelector(`#user-${streamId}`);
             if (ele) { 
-                // const v = ele.querySelector('video') ?? document.createElement('video');
+                const v = ele.querySelector('video') ?? document.createElement('video');
                 // v.srcObject = stream.stream;
-                // v.play();
+                v.play();
                 continue; 
             }
 
             const [container, video] = createVideoElement(stream.id, stream.stream);
             docRef.appendChild(container);
-            video.play();
         }
 
         return;
@@ -126,30 +122,23 @@
             return;
         }
 
+        // const s = new MediaStream();
+        // wsc.stream = s;
+        // streamResolve(s);
         const video = document.querySelector('video');
         startCamera(video).then((mediaStream) => {
             wsc.stream = mediaStream || null;
-            streamResolve(mediaStream || new MediaStream());
-            // streams.push({
-            //     stream: mediaStream || new MediaStream(),
-            //     id: 'hello'
-            // });
-            // streams.push({
-            //     stream: mediaStream || new MediaStream(),
-            //     id: 'hello'
-            // });
-            // streams.push({
-            //     stream: mediaStream || new MediaStream(),
-            //     id: 'hello'
-            // });
-            // streams.push({
-            //     stream: mediaStream || new MediaStream(),
-            //     id: 'hello'
-            // });
-            // streams.push({
-            //     stream: mediaStream || new MediaStream(),
-            //     id: 'hello'
-            // });
+            wsc.addMediaStream(mediaStream || new MediaStream(), MediaType.VIDEO);
+            // streamResolve(mediaStream || new MediaStream());
+
+
+            // for (let i = 0; i < 5; i++) {
+            //     streams.push({
+            //         stream: mediaStream || new MediaStream(),
+            //         id: 'hello'
+            //     });
+            // }
+
         });
 
         return () => {

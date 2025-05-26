@@ -73,7 +73,7 @@ wss.on('connection', (ws) => {
         if (data.to) { // we have a specific recipient
             let toSocket: WebSocket = allClients[data.to];
             if (data.to.includes('-screenshare')) {
-                toSocket = allClients[data.to.split('-screenshare')[0]]
+                toSocket = allClients[data.to.split('-screenshare')[0]];
             }
             
             if (!toSocket) { return; }
@@ -147,6 +147,7 @@ wss.on('connection', (ws) => {
             });
         }
         else if (data.type == 'join') { // join room
+            //remove websocket from the list of clients on the homepage
             freeClients = freeClients.filter(c => c != ws);
 
             roomId = data.roomId;

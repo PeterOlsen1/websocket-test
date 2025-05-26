@@ -6,6 +6,9 @@ export function createVideoElement(id: string, stream: MediaStream): [HTMLDivEle
     const v: HTMLVideoElement = document.createElement('video');
     v.srcObject = stream;
     v.className = `${id.includes('-screenshare') ? 'screenshare' : 'video'}`;
+    v.muted = true;
+    v.autoplay = true;
+    v.playsInline = true;
 
     const text = document.createElement('div');
     text.innerText = id;
